@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Matrix</title>
+<style>
+html,body{margin:0;height:100%;background:#020806;overflow:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+button{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));background:none;border:1px solid #39ff8a77;color:#39ff8a;border-radius:20px;padding:7px 14px;font:600 13px sans-serif;opacity:0;transition:opacity 1s}
+button.on{opacity:1}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas><canvas id="p"></canvas>
+<button id="re" onclick="location.reload()">Xem lại</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),pc=document.getElementById('p'),g2=pc.getContext('2d');
+const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',fs=14,N=4500,GREEN='#39ff8a';
+let W,H,cols,drops,parts=[],pa=1,wiggle=false;
+function init(){W=c.width=pc.width=innerWidth;H=c.height=pc.height=innerHeight;cols=Math.ceil(W/fs);drops=Array.from({length:cols},()=>Math.random()*-40);}
+init();
+function mk(){parts=Array.from({length:N},()=>({x:Math.random()*W,y:Math.random()*H,vx:0,vy:0,tx:Math.random()*W,ty:Math.random()*H,on:0,s:Math.random()}));}
+
+// ---- hình khối: chữ số / bàn tay giơ ngón giữa ----
+function rr(g,x0,y0,w,h,r){g.beginPath();g.roundRect(x0,y0,w,h,r);g.fill();}
+function hand(g,u){
+  g.save();g.translate(W/2,H/2+20*u);g.scale(u,u);g.fillStyle='#fff';
+  rr(g,-70,-6,140,116,34);          // nắm tay
+  rr(g,-17,-150,34,175,17);         // ngón giữa
+  rr(g,-70,-44,46,64,23);           // ngón trỏ (gập)
+  rr(g,24,-38,46,58,23);            // ngón áp út (gập)
+  rr(g,70,-6,24,58,12);             // ngón út
+  g.save();g.translate(-62,62);g.rotate(-.35);rr(g,-14,-17,92,34,17);g.restore(); // ngón cái
+  g.globalCompositeOperation='destination-out';g.strokeStyle='#000';g.lineWidth=4;g.lineCap='round';
+  [[-23,-40,-23,22],[23,-34,23,22],[70,6,70,40],[-52,34,10,46]].forEach(l=>{g.beginPath();g.moveTo(l[0],l[1]);g.lineTo(l[2],l[3]);g.stroke();});
+  g.restore();
+}
+function shape(kind,txt){
+  const m=document.createElement('canvas');m.width=W;m.height=H;const g=m.getContext('2d');
+  if(kind=='text'){g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';
+    const s=Math.min(W,H)*.5;g.font='800 '+s+'px sans-serif';g.fillText(txt,W/2,H/2);}
+  else hand(g,Math.min(H*.62/270,W*.8/190));
+  const d=g.getImageData(0,0,W,H).data,st=3,pts=[];
+  for(let y=0;y<H;y+=st)for(let xx=0;xx<W;xx+=st)if(d[(y*W+xx)*4+3]>128)pts.push([xx+Math.random()*2,y+Math.random()*2]);
+  for(let i=pts.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[pts[i],pts[j]]=[pts[j],pts[i]];}
+  return pts;
+}
+function form(kind,txt){const pts=shape(kind,txt);
+  parts.forEach((p,i)=>{if(i<pts.length){p.tx=pts[i][0];p.ty=pts[i][1];p.on=1;}else{p.on=0;p.tx=Math.random()*W;p.ty=Math.random()*H;}});}
+function burst(){parts.forEach(p=>{const a=Math.random()*6.283,v=8+Math.random()*30;p.vx+=Math.cos(a)*v;p.vy+=Math.sin(a)*v;});}
+
+function draw(){
+  x.fillStyle='rgba(2,8,6,.14)';x.fillRect(0,0,W,H);
+  x.font=fs+'px monospace';x.fillStyle='#1fa85a';
+  for(let i=0;i<cols;i++){const y=drops[i]*fs;x.fillText(L[Math.random()*L.length|0],i*fs,y);
+    if(y>H&&Math.random()>.975)drops[i]=0;drops[i]+=.55;}
+  g2.clearRect(0,0,W,H);
+  const t=performance.now()/1000,sz=W<600?2.2:2.8;
+  for(const p of parts){
+    const k=p.on?.05:.003;
+    p.vx=(p.vx+(p.tx-p.x)*k)*.84;p.vy=(p.vy+(p.ty-p.y)*k)*.84;
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.on){p.x+=Math.sin(t*3+p.s*40)*.25;p.y+=Math.cos(t*2.6+p.s*30)*.25;}
+    g2.globalAlpha=pa*(p.on?1:.25);
+    g2.fillStyle=p.on?(p.s<.3?'#eafff2':GREEN):'#1fa85a';
+    g2.fillRect(p.x,p.y,sz,sz);
+  }
+  requestAnimationFrame(draw);
+}
+function start(){
+  mk();draw();
+  [[900,()=>form('text','3')],[2100,()=>form('text','2')],[3300,()=>form('text','1')],
+   [4500,()=>{burst();form('hand');}],[9000,()=>document.getElementById('re').classList.add('on')]]
+   .forEach(([ms,f])=>setTimeout(f,ms));
+}
+start();
+</script>
+</body>
+</html>
